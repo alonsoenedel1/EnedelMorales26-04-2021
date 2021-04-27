@@ -1,0 +1,213 @@
+OBJECT Table 50010 Customer Bertonis
+{
+  OBJECT-PROPERTIES
+  {
+    Date=26/04/21;
+    Time=04:49:24 p. m.;
+    Modified=Yes;
+    Version List=Bertoni;
+  }
+  PROPERTIES
+  {
+    CaptionML=[ENU=Customer Amount;
+               ESM=Importe cliente;
+               FRC=Montant client;
+               ENC=Customer Amount];
+  }
+  FIELDS
+  {
+    { 1   ;   ;Customer No.        ;Code20        ;TableRelation=Customer;
+                                                   CaptionML=[ENU=Customer No.;
+                                                              ESM=N§ cliente;
+                                                              FRC=Nø client;
+                                                              ENC=Customer No.] }
+    { 2   ;   ;Name                ;Text100       ;DataClassification=ToBeClassified;
+                                                   CaptionML=[ENU=Name;
+                                                              ESM=Nombre;
+                                                              FRC=Nom;
+                                                              ENC=Name] }
+    { 3   ;   ;TotalAmount         ;Decimal       ;DataClassification=ToBeClassified }
+    { 4   ;   ;Source Code         ;Code10        ;TableRelation="Source Code";
+                                                   DataClassification=ToBeClassified;
+                                                   CaptionML=[ENU=Source Code;
+                                                              ESM=C¢d. origen;
+                                                              FRC=Code d'origine;
+                                                              ENC=Source Code] }
+  }
+  KEYS
+  {
+    {    ;Customer No.,Source Code                ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Codeunit 50010 Customer Bertonis
+{
+  OBJECT-PROPERTIES
+  {
+    Date=27/04/21;
+    Time=02:12:27 p. m.;
+    Modified=Yes;
+    Version List=Bertoni;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      txt001@1000000000 : TextConst 'ENU=Do you want to continue with the process?;ESM=¨Deseas contibuar con el proceso?';
+
+    [External]
+    PROCEDURE CopyTotalAmountByCust@1000000001();
+    VAR
+      rCustomer@1000000000 : Record 18;
+      rGLEntry@1000000001 : Record 17;
+      rTotalCust@1000000002 : Record 50010;
+      lDecTotal@1000000003 : Decimal;
+      Dialog@1000000004 : Dialog;
+      rSourceCode@1000000005 : Record 230;
+    BEGIN
+
+      IF CONFIRM (txt001,FALSE) THEN
+          BEGIN
+            //Borramos el historial
+            rTotalCust.DELETEALL(FALSE);
+            COMMIT;
+
+            //Recorremos los clientes y los buscamos en contabilidad y si hay importe lo ingresamos de nuevo con su importe total
+
+            Dialog.OPEN('#1',rCustomer."No.");
+            rCustomer.RESET;
+            IF rCustomer.FINDFIRST THEN
+              REPEAT
+                    Dialog.UPDATE(1,rCustomer."No.");
+                    rSourceCode.RESET;
+                    IF rSourceCode.FINDFIRST THEN //Recorro por Source code
+                       REPEAT
+                          rGLEntry.RESET;
+                          rGLEntry.SETRANGE("Source No.",rCustomer."No."); //Filtramos por Cliente
+                          rGLEntry.SETRANGE("Source Code",rSourceCode.Code);// Filtramos Source code
+                          IF rGLEntry.FINDFIRST THEN
+                              REPEAT
+                                  lDecTotal += rGLEntry.Amount; //sumamos en variable temporal las l¡neas
+                                UNTIL rGLEntry.NEXT <=0;
+                          //Si tenemos importe colocamos el total por cliente e insertamos en nuestra nueva tabla
+                          IF lDecTotal <> 0 THEN
+                              BEGIN
+                                  rTotalCust.INIT;
+                                  rTotalCust."Customer No." :=rCustomer."No.";
+                                  rTotalCust.Name := rCustomer.Name;
+                                  rTotalCust.TotalAmount := lDecTotal;
+                                  rTotalCust."Source Code" := rSourceCode.Code;
+                                  rTotalCust.INSERT(FALSE); //No disparamos triguer
+                                  CLEAR(lDecTotal); //Limpiamos variable a 0
+                              END
+                          ELSE
+                              BEGIN
+                                  // si viene en 0 no deber¡a hacernos falta, pero si hace falta los 0 solo se quita esta condici¢n
+                                END;
+                      UNTIL rSourceCode.NEXT <=0;
+                UNTIL rCustomer.NEXT <=0;
+             Dialog.CLOSE;
+
+             END //End del Confirm
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Page 50010 Customer Bertonis
+{
+  OBJECT-PROPERTIES
+  {
+    Date=27/04/21;
+    Time=01:16:48 p. m.;
+    Modified=Yes;
+    Version List=Bertoni;
+  }
+  PROPERTIES
+  {
+    ApplicationArea=#Suite;
+    SourceTable=Table50010;
+    PopulateAllFields=Yes;
+    PageType=List;
+    ActionList=ACTIONS
+    {
+      { 1000000011;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 1000000008;1 ;ActionGroup;
+                      CaptionML=[ENU=Dimensions;
+                                 ESM=Dimensiones;
+                                 FRC=Dimensions;
+                                 ENC=Dimensions];
+                      Image=Dimensions }
+      { 1000000006;2 ;Action    ;
+                      Name=CopyData;
+                      ShortCutKey=Shift+Ctrl+D;
+                      CaptionML=[ENU=Copy Data Bertoni Customer;
+                                 ESM="Copiar Datos Clientes Bertoni "];
+                      ToolTipML=[ENU=This action generates total customers grouping it by customer codes registered in accounting for Bertoni.;
+                                 ESM=Esta acci¢n genera total de clientes agrupandolo por c¢digos de cliente registrados en contabilidad para Bertoni.];
+                      ApplicationArea=#Home;
+                      Promoted=Yes;
+                      Image=Copy;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 cCustBertoni.CopyTotalAmountByCust;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1000000000;0;Container;
+                ContainerType=ContentArea }
+
+    { 1000000001;1;Group  ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 1000000002;2;Field  ;
+                SourceExpr="Customer No." }
+
+    { 1000000003;2;Field  ;
+                SourceExpr=Name }
+
+    { 1000000009;2;Field  ;
+                SourceExpr="Source Code" }
+
+    { 1000000004;2;Field  ;
+                SourceExpr=TotalAmount }
+
+    { 1000000005;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 1000000007;1;Part   ;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      cCustBertoni@1000000000 : Codeunit 50010;
+
+    BEGIN
+    END.
+  }
+}
+
