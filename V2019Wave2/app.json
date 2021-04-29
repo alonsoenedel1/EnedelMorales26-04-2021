@@ -1,0 +1,26 @@
+{
+  "id": "45e6605c-b803-4712-9ed4-a7d44e0d7993",
+  "name": "V2019WAVE2",
+  "publisher": "SandBox",
+  "version": "1.0.0.0",
+  "runtime": "4.0",
+  "showMyCode": true,
+  "target": "Cloud",
+  "platform": "15.0.36510.0",
+  "dependencies": [
+    {
+      "appId": "437dbf0e-84ff-417a-965d-ed2bb9650972",
+      "name": "Base Application",
+      "version": "15.0.36560.36649",
+      "publisher": "Microsoft"
+    }
+  ],
+  "idRanges": [
+    {
+      "from": 50100,
+      "to": 50149
+    }
+  ]
+}
+
+ 
