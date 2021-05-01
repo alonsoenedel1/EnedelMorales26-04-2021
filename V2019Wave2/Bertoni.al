@@ -116,7 +116,6 @@ codeunit 50100 "Customer Bertonis"
     var
         txt001: Label 'Do you want to continue with the process2?';
 
-    [Scope('Personalization')]
     procedure CopyTotalAmountByCust()
     var
         rCustomer: Record Customer;
